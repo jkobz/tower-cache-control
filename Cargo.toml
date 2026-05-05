@@ -1,18 +1,18 @@
 [package]
 name = "tower-cache-control"
 description = "Tower middleware to set Cache-Control response header"
-repository = "https://github.com/evgenykobz/tower-cache-control"
+repository = "https://github.com/jkobz/tower-cache-control"
 readme = "README.md"
 keywords = ["tower"]
 categories = ["web-programming"]
-authors = ["Evgeny Kobzev <jenyakobzev@gmail.com>"]
-edition = "2021"
-version = "1.0.0"
+authors = ["Eugene Kobzev <jenyakobzev@gmail.com>"]
+edition = "2024"
+version = "1.1.0"
 license = "MIT"
 
 [dependencies]
-futures = "0.3.31"
-http = "1.3.1"
+futures = "0.3.32"
+http = "1.4.0"
 tower-layer = "0.3.3"
 tower-service = "0.3.3"
-headers = "0.4.0"
+headers = "0.4.1"

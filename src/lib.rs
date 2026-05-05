@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-use std::{mem, task, time::Duration};
+use std::{task, time::Duration};
 
 use futures::future::BoxFuture;
 pub use headers::CacheControl;
@@ -14,6 +14,7 @@ use tower_service::Service;
 pub struct CacheControlLayer {
     default: Option<CacheControl>,
 }
+
 impl CacheControlLayer {
     pub fn new(header: CacheControl) -> Self {
         Self {
@@ -21,15 +22,14 @@ impl CacheControlLayer {
         }
     }
 }
+
 impl Default for CacheControlLayer {
     fn default() -> Self {
         Self { default: None }
     }
 }
-impl<S> Layer<S> for CacheControlLayer
-where
-    S: Clone + Send + Sync + 'static,
-{
+
+impl<S> Layer<S> for CacheControlLayer {
     type Service = CacheControlService<S>;
     fn layer(&self, inner: S) -> Self::Service {
         CacheControlService {
@@ -38,6 +38,7 @@ where
         }
     }
 }
+
 /// # `Cache-Control` setter [Service].
 ///
 /// Assigns a value based on a response status:
@@ -49,43 +50,40 @@ where
 ///
 /// *TTL* defaults to `5` seconds.
 #[derive(Clone, Debug)]
-pub struct CacheControlService<S>
-where
-    S: Clone + Send + Sync + 'static,
-{
+pub struct CacheControlService<S> {
     inner: S,
     default: Option<CacheControl>,
 }
-impl<ReqB, ResB, S> Service<Request<ReqB>> for CacheControlService<S>
+
+impl<B, D, S> Service<Request<B>> for CacheControlService<S>
 where
-    S: Service<Request<ReqB>, Response = Response<ResB>> + Clone + Send + Sync + 'static,
+    S: Service<Request<B>, Response = Response<D>> + Send + 'static,
     S::Future: Send + 'static,
-    ReqB: Send + 'static,
-    ResB: Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
+
     fn poll_ready(&mut self, cx: &mut task::Context<'_>) -> task::Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
     }
-    fn call(&mut self, req: Request<ReqB>) -> Self::Future {
+
+    fn call(&mut self, req: Request<B>) -> Self::Future {
         let default = self
             .default
             .clone()
             .unwrap_or(CacheControl::new().with_max_age(Duration::from_secs(5)));
-        let clone = self.inner.clone();
-        let mut inner = mem::replace(&mut self.inner, clone);
+        let header = req
+            .headers()
+            .typed_get::<CacheControl>()
+            .and_then(|header| header.ne(&CacheControl::new()).then_some(header));
+        let fut = self.inner.call(req);
         Box::pin(async move {
-            let header = req
-                .headers()
-                .typed_get::<CacheControl>()
-                .and_then(|header| header.ne(&CacheControl::new()).then_some(header));
-            let mut response = inner.call(req).await?;
-            let None = response.headers().typed_get::<CacheControl>() else {
-                return Ok(response);
+            let mut res = fut.await?;
+            if res.headers().typed_get::<CacheControl>().is_some() {
+                return Ok(res);
             };
-            let header = match response.status() {
+            let header = match res.status() {
                 StatusCode::MOVED_PERMANENTLY => default
                     .with_max_age(Duration::from_secs(86_400))
                     .with_public(),
@@ -96,8 +94,8 @@ where
                     .with_max_age(Duration::from_secs(1_800))
                     .with_public(),
             };
-            response.headers_mut().typed_insert(header);
-            Ok(response)
+            res.headers_mut().typed_insert(header);
+            Ok(res)
         })
     }
 }
