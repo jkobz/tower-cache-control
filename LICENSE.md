@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 Evgeny Kobzev
+Copyright (c) 2026 Eugene Kobzev
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the “Software”), to deal

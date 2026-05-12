@@ -13,7 +13,7 @@
 
 ```toml
 [dependencies]
-tower-cache-control = "1.1.0"
+tower-cache-control = "1.1.1"
 ```
 
 Layer `CacheControlLayer` comes with a default value (via `Default` trait),
